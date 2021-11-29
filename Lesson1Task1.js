@@ -1,4 +1,4 @@
-////加载web3的库
+//加载web3的库
 const Web3 = require('web3');
 //读取ERC20的ABI文件
 const erc20Abi = require('./ABI/erc20.json');

@@ -1,10 +1,17 @@
+//加载web3的库
 const Web3 = require('web3');
+//读取ERC20的ABI文件
 const erc20Abi = require('./ABI/erc20.json');
+//设置BSC的RPC链接
 const rpcUrl = 'https://data-seed-prebsc-1-s1.binance.org:8545';
 const rpcWeb3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
 let web3 = rpcWeb3;
 
-//通过小数点多少位，转换对应的数据
+/**
+ * 通过小数点多少位，转换对应的数据
+ * @param {*} tokenDecimals 小数点位数
+ * @returns 相对应的位数名
+ */
 function getWeiName(tokenDecimals = 18) {
     tokenDecimals = Number(tokenDecimals);
     let weiName = 'ether';
@@ -35,6 +42,11 @@ function getWeiName(tokenDecimals = 18) {
     return weiName;
 }
 
+/**
+ * 获得钱包原生代币余额
+ * @param {*} address 钱包地址
+ * @returns 钱包原生代币数量
+ */
 const getBnbBalance = (address) => {
     return new Promise(async (resolve, reject) => {
         let result = await web3.eth.getBalance(address);
@@ -47,6 +59,12 @@ const getBnbBalance = (address) => {
     })
 }
 
+/**
+ * 获得ERC20代币余额
+ * @param {*} tokenAddress 代币的合约
+ * @param {*} address 钱包地址
+ * @returns ERC20代币余额
+ */
 const getTokenBalance = (tokenAddress, address) => {
     return new Promise(async (resolve, reject) => {
         let tokenContract = new web3.eth.Contract(erc20Abi, tokenAddress);
@@ -60,6 +78,13 @@ const getTokenBalance = (tokenAddress, address) => {
 
 }
 
+/**
+ * 转移代币
+ * @param {*} from 来源钱包
+ * @param {*} to 目标钱包
+ * @param {*} amount 数量
+ * @param {*} input 构造的数据
+ */
 const transfer = async (from, to, amount, input) => {
     let gasPrice = await web3.eth.getGasPrice();
     let gasLimit = 420000;
@@ -79,6 +104,9 @@ const transfer = async (from, to, amount, input) => {
 
 }
 
+/**
+ * 转移ERC20代币
+ */
 async function transferErc20() {
     let account = web3.eth.accounts.privateKeyToAccount(process.env.PRIVATE_KEY);
     let from = account.address;
@@ -96,6 +124,9 @@ async function transferErc20() {
     }
 }
 
+/**
+ * 转移原生代币
+ */
 async function transferBnB() {
     let account = web3.eth.accounts.privateKeyToAccount(process.env.PRIVATE_KEY);
     let from = account.address;

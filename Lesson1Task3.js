@@ -44,6 +44,13 @@ function getWeiName(tokenDecimals = 18) {
     }
     return weiName;
 }
+
+/**
+ * 获得ERC20代币余额
+ * @param {*} tokenAddress 代币的合约
+ * @param {*} address 钱包地址
+ * @returns ERC20代币余额
+ */
 const getTokenBalance = (tokenAddress, address) => {
     return new Promise(async (resolve, reject) => {
         let tokenContract = new web3.eth.Contract(erc20Abi, tokenAddress);
@@ -57,7 +64,13 @@ const getTokenBalance = (tokenAddress, address) => {
 
 }
 
-
+/**
+ * 构建原生代币和ERC20代币数据
+ * @param {*} toAddress 钱包地址
+ * @param {*} tokenAmountOut 转出的数量
+ * @param {*} tokendecimals 小数点位数
+ * @returns 
+ */
 function swapTokenInput(toAddress, tokenAmountOut, tokendecimals = 18) {
     const weiname = getWeiName(tokendecimals);
     const path = [addresses.WBNB, addresses.BUSD];
@@ -68,6 +81,14 @@ function swapTokenInput(toAddress, tokenAmountOut, tokendecimals = 18) {
     return data;
 }
 
+/**
+ * 构建ERC20代币和原生代币数据
+ * @param {*} toAddress 钱包地址
+ * @param {*} tokenamountIn 转入的数量
+ * @param {*} tokenAmountOut 转出的数量
+ * @param {*} tokendecimals 小数点位数
+ * @returns 
+ */
 function tokensToEthInput(toAddress, tokenamountIn, tokenAmountOut, tokendecimals = 18) {
     const weiname = getWeiName(tokendecimals);
     const path = [addresses.BUSD, addresses.WBNB]
@@ -79,6 +100,14 @@ function tokensToEthInput(toAddress, tokenamountIn, tokenAmountOut, tokendecimal
     return data;
 }
 
+/**
+ * 构建ERC20代币和ERC20代币数据
+ * @param {*} toAddress 钱包地址
+ * @param {*} tokenamountIn 转入的数量
+ * @param {*} tokenAmountOut 转出的数量
+ * @param {*} tokendecimals 小数点位数
+ * @returns 
+ */
 function tokensToTokenInput(toAddress, tokenamountIn, tokenAmountOut, tokendecimals = 18) {
     const weiname = getWeiName(tokendecimals);
     const path = [addresses.BUSD, addresses.DAI]
@@ -90,6 +119,12 @@ function tokensToTokenInput(toAddress, tokenamountIn, tokenAmountOut, tokendecim
     return data;
 }
 
+/**
+ * 原生代币和ERC20代币交易
+ * @param {*} myAddress 
+ * @param {*} amount 
+ * @param {*} rate 
+ */
 const swapBnbToToken = async (myAddress, amount, rate) => {
     const tokenContract = new web3.eth.Contract(erc20Abi, addresses.BUSD);
     const decimals = await tokenContract.methods.decimals().call();
@@ -112,8 +147,20 @@ const swapBnbToToken = async (myAddress, amount, rate) => {
         web3.eth.sendSignedTransaction(signed.rawTransaction).on('receipt', console.log)
     });
 }
+
+/**
+ * ERC20代币和原生代币交易
+ * @param {*} myAddress 钱包地址
+ * @param {*} tokenToSell 要交易的合约
+ * @param {*} rate 价格
+ */
 const swapTokenToBnb = async (myAddress, tokenToSell, rate) => {
     const tokenContract = new web3.eth.Contract(erc20Abi, addresses.BUSD);
+    let isApproved = await hasApproved(addresses.BUSD, myAddress, addresses.PANCAKE_ROUTER);
+    console.log(isApproved)
+    if (!isApproved) {
+        await approve(addresses.BUSD, myAddress, addresses.PANCAKE_ROUTER)
+    }
     const decimals = await tokenContract.methods.decimals().call();
     const los = 5;
     const ntoken = tokenToSell * (100 - los) * 0.01 / rate;
@@ -133,8 +180,18 @@ const swapTokenToBnb = async (myAddress, tokenToSell, rate) => {
         web3.eth.sendSignedTransaction(signed.rawTransaction).on('receipt', console.log)
     });
 };
+/**
+ * ERC20 和 ERC20代币交易
+ * @param {*} myAddress 钱包地址
+ * @param {*} tokenToSell 要swap的代币
+ * @param {*} rate 价格
+ */
 const swapTokenToToken = async (myAddress, tokenToSell, rate) => {
     const tokenContract = new web3.eth.Contract(erc20Abi, addresses.BUSD);
+    let isApproved = await hasApproved(addresses.BUSD, myAddress, addresses.PANCAKE_ROUTER);
+    if (!isApproved) {
+        await approve(addresses.BUSD, myAddress, addresses.PANCAKE_ROUTER)
+    }
     const decimals = await tokenContract.methods.decimals().call();
     const los = 5;
     const ntoken = tokenToSell * (100 - los) * 0.01 / rate;
@@ -155,21 +212,70 @@ const swapTokenToToken = async (myAddress, tokenToSell, rate) => {
     });
 };
 
+/**
+ * 查看是否有授权
+ * @param {*} tokenAddress 代币的合约
+ * @param {*} myAddress 钱包地址
+ * @param {*} spender 给予授权的地址
+ * @returns 是否授权
+ */
+const hasApproved = async (tokenAddress, myAddress, spender) => {
+    const tokenContract = new web3.eth.Contract(erc20Abi, tokenAddress);
+    return (await tokenContract.methods.allowance(myAddress, spender).call()) > 0 ? true : false;
+}
+
+/**
+ * 授权
+ * @param {*} tokenAddress 代币的合约
+ * @param {*} myAddress 钱包地址
+ * @param {*} spender 给予授权的地址
+ * @returns 授权结果
+ */
+const approve = (tokenAddress, myAddress, spender) => {
+    return new Promise(async (resolve, reject) => {
+        const tokenContract = new web3.eth.Contract(erc20Abi, tokenAddress);
+        let maxAmount = web3.utils.toWei((Math.pow(2, 64) - 1).toString(), 'ether');
+        let nounce = await web3.eth.getTransactionCount(myAddress);
+        let data = await tokenContract.methods.approve(spender, maxAmount).encodeABI();
+        let gasPrice = await web3.eth.getGasPrice();
+        const gasLimit = 420000;
+        let tx = {
+            nounce,
+            gasPrice,
+            gasLimit,
+            to: tokenAddress,
+            value: web3.utils.toWei((0).toString(), 'Gwei'),
+            data
+        };
+        web3.eth.accounts.signTransaction(tx, process.env.PRIVATE_KEY).then(signed => {
+            web3.eth.sendSignedTransaction(signed.rawTransaction).on('receipt', receipt => {
+                if (receipt.status) {
+                    resolve(true);
+                } else {
+                    reject(false);
+                }
+            })
+        });
+    });
+}
+
 //实现pancake的swap功能比如 ETHtotoken，tokentotoken，tokentoswap
 async function main() {
+    let account = web3.eth.accounts.privateKeyToAccount(process.env.PRIVATE_KEY);
     let bnbBsc = await getTokenBalance(addresses.WBNB, addresses.WBNB_BUSD_LP);
     let busdBsc = await getTokenBalance(addresses.BUSD, addresses.WBNB_BUSD_LP);
     let busdBnbRate = parseFloat(busdBsc) / parseFloat(bnbBsc);
+
     //BNB to Token Swap
-    swapBnbToToken('0xFAa8dF66E9C83304210b48BdABc951Cf75c35905', 0.005, busdBnbRate);
+    swapBnbToToken(account.address, 0.005, busdBnbRate);
     //Token to BNB Swap
-    swapTokenToBnb('0xFAa8dF66E9C83304210b48BdABc951Cf75c35905', 1, busdBnbRate);
+    swapTokenToBnb(account.address, 1, busdBnbRate);
 
     let daiBsc = await getTokenBalance(addresses.DAI, addresses.BUSD_DAI_LP);
     busdBsc = await getTokenBalance(addresses.BUSD, addresses.BUSD_DAI_LP);
     let busdDaiRate = parseFloat(busdBsc) / parseFloat(daiBsc);
     //Token to Token Swap
-    swapTokenToToken('0xFAa8dF66E9C83304210b48BdABc951Cf75c35905', 1, busdDaiRate);
+    swapTokenToToken(account.address, 1, busdDaiRate);
 }
 
 main();

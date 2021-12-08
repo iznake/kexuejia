@@ -1,5 +1,6 @@
 //加载web3的库
 const Web3 = require('web3');
+require("dotenv").config();
 //读取ERC20的ABI文件
 const erc20Abi = require('./ABI/erc20.json');
 //设置BSC的RPC链接

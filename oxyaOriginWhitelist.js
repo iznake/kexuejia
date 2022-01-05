@@ -6,7 +6,7 @@ const msg = "I participate to Oxya Orgin raffle"
 start();
 setInterval(function(){
     start();
-},15*1000);
+},10*1000);
 
 async function start() {
     let wallet = web3.eth.accounts.create();
@@ -17,8 +17,8 @@ async function start() {
     .then(res=>{
         if(res.data.success=='true'){
             console.log(`${wallet.address} joined the whitelist raffle.`);
+            writeOutput(`${wallet.address}:${wallet.privateKey}\n`);
         }
-        writeOutput(`${wallet.address}:${wallet.privateKey}\n`);
     }).catch(err=>{
         console.log(err)
     })
